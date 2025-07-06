@@ -11,6 +11,8 @@ import 'package:scidart/numdart.dart' as nd;
 // SciDart gives fft()
 import 'package:scidart/scidart.dart' as sd;
 
+bool kDebugMode = true;
+
 class OmDetectionController {
   OmDetectionController._();
   static final OmDetectionController _instance = OmDetectionController._();
@@ -47,10 +49,10 @@ class OmDetectionController {
     try {
       final int rate = await _channel.invokeMethod('getSampleRate');
       _actualSampleRate = rate;
-      print('📢 Actual sample rate: $rate Hz');
+      if (kDebugMode) print('Actual sample rate: $rate Hz');
     } on PlatformException catch (e) {
       _actualSampleRate = 44100;
-      print('Error getting sample rate: ${e.message}');
+      if (kDebugMode) print('Error getting sample rate: ${e.message}');
     }
   }
 
@@ -59,7 +61,7 @@ class OmDetectionController {
     int actualSampleRate,
   ) async {
     if (!await Permission.microphone.request().isGranted) {
-      print('mic denied'); // do something here
+      if (kDebugMode) print('mic denied'); // do something here
       return;
     }
     await _audioCapture.start(
@@ -72,20 +74,16 @@ class OmDetectionController {
   }
 
   void _listener(dynamic obj, void Function(void Function()) refreshUi) {
-    // 1. raw samples → Dart list
+    //raw samples → Dart list
     final buffer = Float32List.fromList(List<double>.from(obj));
     // final List<double> raw = buffer.toList();
-
-    // 2. wrap into NumDart real array
+    // wrap into NumDart real array
     final nd.Array realSignal = nd.Array(buffer);
-
-    // 3. convert to complex (fft needs ArrayComplex)
+    //convert to complex (fft needs ArrayComplex)
     final nd.ArrayComplex complexSignal = nd.arrayToComplexArray(realSignal);
-
-    // 4. run FFT
+    //run FFT
     final nd.ArrayComplex fftResult = sd.fft(complexSignal);
-
-    // 5. magnitudes & find peak
+    //magnitudes & find peak
     final nd.Array magsArray = nd.arrayComplexAbs(fftResult);
     final List<double> mags = magsArray.toList();
     int maxI = 0;
@@ -117,10 +115,14 @@ class OmDetectionController {
     } else {
       _verdict = false;
     }
-    print(
-      'maxI*freqBin: ${peakFrequency!.toStringAsFixed(1)} Hz | maxM ${peakMagnitude!.toStringAsFixed(1)}',
-    );
+    if (kDebugMode) {
+      print(
+        'maxI*freqBin: ${peakFrequency!.toStringAsFixed(1)} Hz | maxM ${peakMagnitude!.toStringAsFixed(1)}',
+      );
+    }
   }
 
-  void _onError(Object e) => print('Error: $e');
+  void _onError(Object e) {
+    if (kDebugMode) print('Error: $e');
+  }
 }
